@@ -11,12 +11,12 @@ import (
 )
 
 func main() {
-	// 🔍 Verificação explícita do banco (prova para a banca)
+	// 🔍 Verifica se o banco existe (evita erro silencioso)
 	if _, err := os.Stat("../data/db1"); err != nil {
 		log.Fatal("DB not found:", err)
 	}
 
-	// 🔌 Conexão com SQLite
+	// 🔌 Conecta ao SQLite
 	db, err := sql.Open("sqlite3", "../data/db1")
 	if err != nil {
 		log.Fatal(err)
@@ -82,6 +82,34 @@ func main() {
 			var row Row
 			rows.Scan(&row.Player, &row.Total)
 			result = append(result, row)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	})
+
+	// ================================
+	// ⏱️ Tempo médio de partida
+	// ================================
+	http.HandleFunc("/analytics/average-duration", func(w http.ResponseWriter, r *http.Request) {
+		row := db.QueryRow(`
+			SELECT AVG(duration)
+			FROM matches
+		`)
+
+		var avg sql.NullFloat64
+		err := row.Scan(&avg)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		result := map[string]float64{
+			"average_duration": 0,
+		}
+
+		if avg.Valid {
+			result["average_duration"] = avg.Float64
 		}
 
 		w.Header().Set("Content-Type", "application/json")
